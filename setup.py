@@ -5,12 +5,12 @@ except ImportError:
 
 setup(
     name="termdown",
-    version="1.14.1",
+    version="1.14.2",
     description="Countdown timer for your terminal",
-    author="Torsten Rehn",
-    author_email="torsten@rehn.email",
+    author="Paul Infield-Harm, Torsten Rehn (original), ",
+    author_email="paul@infield-harm.org",
     license="GPLv3",
-    url="https://github.com/trehn/termdown",
+    url="https://github.com/pinfieldharm/termdown",
     keywords=[
         "console",
         "countdown",

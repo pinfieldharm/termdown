@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-VERSION = "1.14.1"
+from text_renderer import TextRenderer
+
+VERSION = "1.14.2"
 
 import curses
 from datetime import datetime, timedelta
@@ -28,8 +30,6 @@ import unicodedata
 import click
 from dateutil import tz
 from dateutil.parser import parse
-from pyfiglet import CharNotPrinted, Figlet
-
 
 click.disable_unicode_literals_warning = True
 
@@ -272,6 +272,7 @@ def countdown(
     stdscr,
     alt_format=False,
     font=DEFAULT_FONT,
+    title_font=None,
     blink=False,
     critical=3,
     quit_after=None,
@@ -295,13 +296,10 @@ def countdown(
     except ValueError:
         raise click.BadParameter("Unable to parse TIME value '{}'".format(timespec))
     curses_lock, input_queue, quit_event = setup(stdscr)
-    figlet = Figlet(font=font)
 
-    if title and not no_figlet:
-        try:
-            title = figlet.renderText(title)
-        except CharNotPrinted:
-            title = ""
+    text_renderer = TextRenderer(no_figlet, font, title_font)
+
+    title = text_renderer.render_title(title)
 
     voice_cmd = None
     if voice:
@@ -321,7 +319,7 @@ def countdown(
 
     try:
         while seconds_left > 0 or blink or text:
-            figlet.width = stdscr.getmaxyx()[1]
+            text_renderer.update_width(stdscr.getmaxyx()[1])
             if time:
                 countdown_text = datetime.now().strftime(time_format)
             elif alt_format:
@@ -340,7 +338,7 @@ def countdown(
                     try:
                         draw_text(
                             stdscr,
-                            countdown_text if no_figlet else figlet.renderText(countdown_text),
+                            text_renderer.render_counter(countdown_text),
                             color=1 if seconds_left <= critical else 0,
                             fallback=title + "\n" + countdown_text if title else countdown_text,
                             title=title,
@@ -393,7 +391,7 @@ def countdown(
                         try:
                             draw_text(
                                 stdscr,
-                                countdown_text if no_figlet else figlet.renderText(countdown_text),
+                                text_renderer.render_counter(countdown_text),
                                 color=3,
                                 fallback=countdown_text,
                             )
@@ -432,13 +430,7 @@ def countdown(
                     with open(outfile, 'w') as f:
                         f.write("{}\n{}\n".format(text if text else "DONE", 0))
 
-                rendered_text = text
-
-                if text and not no_figlet:
-                    try:
-                        rendered_text = figlet.renderText(text)
-                    except CharNotPrinted:
-                        rendered_text = ""
+                rendered_text = text_renderer.render_title(text)
 
                 if blink or text:
                     base_color = 1 if blink else 0
@@ -500,6 +492,7 @@ def stopwatch(
     stdscr,
     alt_format=False,
     font=DEFAULT_FONT,
+    title_font=None,
     no_figlet=False,
     no_seconds=False,
     quit_after=None,
@@ -511,13 +504,9 @@ def stopwatch(
     **kwargs
 ):
     curses_lock, input_queue, quit_event = setup(stdscr)
-    figlet = Figlet(font=font)
+    text_renderer = TextRenderer(no_figlet, font, title_font)
 
-    if title and not no_figlet:
-        try:
-            title = figlet.renderText(title)
-        except CharNotPrinted:
-            title = ""
+    title = text_renderer.render_title(title)
 
     input_thread = Thread(
         args=(stdscr, input_queue, quit_event, curses_lock),
@@ -531,7 +520,7 @@ def stopwatch(
         seconds_elapsed = 0
         laps = []
         while quit_after is None or seconds_elapsed < int(quit_after):
-            figlet.width = stdscr.getmaxyx()[1]
+            text_renderer.update_width(stdscr.getmaxyx()[1])
             if time:
                 countdown_text = datetime.now().strftime(time_format)
             elif alt_format:
@@ -548,7 +537,7 @@ def stopwatch(
                 try:
                     draw_text(
                         stdscr,
-                        countdown_text if no_figlet else figlet.renderText(countdown_text),
+                        text_renderer.render_counter(countdown_text),
                         fallback=countdown_text,
                         title=title,
                     )
@@ -575,7 +564,7 @@ def stopwatch(
                         try:
                             draw_text(
                                 stdscr,
-                                countdown_text if no_figlet else figlet.renderText(countdown_text),
+                                text_renderer.render_counter(countdown_text),
                                 color=3,
                                 fallback=countdown_text,
                                 title=title,
@@ -642,6 +631,8 @@ def input_thread_body(stdscr, input_queue, quit_event, curses_lock):
 @click.option("-c", "--critical", default=3, metavar="N",
               help="Draw final N seconds in red (defaults to 3)")
 @click.option("-f", "--font", default=DEFAULT_FONT, metavar="FONT",
+              help="Choose from http://www.figlet.org/examples.html")
+@click.option("-F", "--title-font", default=DEFAULT_FONT, metavar="FONT",
               help="Choose from http://www.figlet.org/examples.html")
 @click.option("-p", "--voice-prefix", metavar="TEXT",
               help="Add TEXT to the beginning of --voice announciations "
